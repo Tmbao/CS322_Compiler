@@ -1,0 +1,35 @@
+str "Input n:"
+entry main, 1
+func fact__int
+funci 2, 4
+jlte %0, 0, ~2
+jump ~1
+~2:
+retf fact, 1
+~3:
+~1:
+sub &0, %0, 1
+arg &0, 0
+callf &1, fact, 1
+move f, &1
+~4:
+mult &2, @0, %0
+retf fact, &2
+~5:
+efunc fact__int
+func main_
+funci 3, 2
+arg ?0, 0
+write ?0
+~6:
+arg @1, 0
+read @1
+~7:
+arg 10, 0
+callf &0, fact, 1
+move m, &0
+~8:
+arg @0, 0
+write @0
+~9:
+efunc main_

@@ -1,0 +1,7 @@
+enum Scope {
+	CONST,
+	GLOBAL,
+	PARAM,
+	LOCAL,
+	TEMPORARY
+}

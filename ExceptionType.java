@@ -1,0 +1,8 @@
+enum ExceptionType {
+	ERROR,
+	WARNING,
+	SEMANTIC_ERROR,
+	SEMANTIC_WARNING
+}
+
+
