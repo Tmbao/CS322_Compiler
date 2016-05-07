@@ -1,24 +1,18 @@
-int fact(int n)
-{
-	int f;
-
-	if(n <= 0)
-	{
+int fact(int n) {
+	if (n < 1) {
 		return 1;
 	}
-
-
-	f = fact(n - 1);
-	
-	return f * n;
+	return n * fact(n - 1);
 }
-
 void main()
 {
-	int m;
 	int n;
-	printf("Input n:");
+	int m;
 	scanf(n);
-	m = fact(10);
+	m = 1;
+	while (n > 0) {
+		m = m * n;
+		n = n - 1;
+	}
 	printf(m);
 }

@@ -7,7 +7,7 @@ class HIRHelper {
 	}
 
 	public static int countTemporary() {
-		return temporaryCounter + 1;
+		return temporaryCounter;
 	}
 
 	private static int localCounter = 0; // Local variables
@@ -17,7 +17,7 @@ class HIRHelper {
 	}
 
 	public static int countLocal() {
-		return localCounter + 1;
+		return localCounter;
 	}
 
 	private static int globalCounter = 0; // Global variables
@@ -27,7 +27,7 @@ class HIRHelper {
 	}
 
 	public static int countGlobal() {
-		return globalCounter + 1;
+		return globalCounter;
 	}
 
 	private static int constCounter = 0; // Constants
@@ -37,7 +37,7 @@ class HIRHelper {
 	}
 
 	public static int countConst() {
-		return constCounter + 1;
+		return constCounter;
 	}
 
 	public static int paramCounter = 0; // Parameters
@@ -47,7 +47,7 @@ class HIRHelper {
 	}
 
 	public static int countParam() {
-		return paramCounter + 1;
+		return paramCounter;
 	}
 
 	public static int newVariable(Scope scope) {

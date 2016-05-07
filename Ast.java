@@ -70,7 +70,7 @@ class Program extends Ast {
 		TranslationAG ret = new TranslationAG();
 		for (String item : consts)
 			ret.appendCode(HIRHelper.addConst(item));
-		ret.appendCode(HIRHelper.setEntry("main", HIRHelper.countGlobal()));
+		ret.appendCode(HIRHelper.setEntry("main_", HIRHelper.countGlobal()));
 		ret.appendCode(dag.getCode());
 
 		return ret;
@@ -149,7 +149,7 @@ class VarDecl extends Decl {
 		VariableType varType;
 		try {
 			varType = new VariableType(type, HIRHelper.newVariable(getScope()), getScope());
-			symbolTable.addEntry(name.getName(), varType) ;
+			symbolTable.addEntry(name.getName(), varType);
 		} catch (CompilingException exception) {
 		}
 		return new TranslationAG();
@@ -202,6 +202,10 @@ class FnDecl extends Decl {
 		ret.appendCode(bag.getCode());
 		ret.appendCode(HIRHelper.endFunction(name.getName() + "_" + formalList.getLabel()));
 		return ret;
+	}
+
+	public String getLabel() {
+		return name.getName() + "_" + formalList.getLabel();
 	}
 
     public Id getId() {
@@ -519,9 +523,9 @@ class AssignStmt extends Stmt {
 		ag.setAddress(rag.getAddress());
 	
 		if (lhs instanceof ArrayExp) 
-			ag.appendCode(HIRHelper.assignArray(((ArrayExp)lhs).getLhsAddress(), ((ArrayExp)lhs).getExpAddress(), rag.getAddress()));
+			ag.appendCode(HIRHelper.assignArray(lag.getAddress(), ((ArrayExp)lhs).getExpAddress(), rag.getAddress()));
 		else
-			ag.appendCode(HIRHelper.assign(((Id)lhs).getName(), rag.getAddress()));
+			ag.appendCode(HIRHelper.assign(lag.getAddress(), rag.getAddress()));
 		return ag;
 	}
 
@@ -725,7 +729,7 @@ class ForStmt extends Stmt {
 
 		TranslationAG iag = init.translate(symbolTable);
 		TranslationAG cag = cond.translate(symbolTable);
-		TranslationAG mag = cond.translate(symbolTable);
+		TranslationAG mag = incr.translate(symbolTable);
 		SymbolTable forSymbolTable = new SymbolTable();
 		forSymbolTable.setParent(symbolTable);
 		TranslationAG dag = declList.translate(forSymbolTable);
@@ -793,11 +797,11 @@ class ReturnStmt extends Stmt {
 	public TranslationAG translate(SymbolTable symbolTable) {
 		TranslationAG ret = new TranslationAG();
 		if (exp == null) {
-			ret.appendCode(HIRHelper.returnFn(fn.getId().getName()));
+			ret.appendCode(HIRHelper.returnFn(fn.getLabel()));
 		} else {
 			TranslationAG eag = exp.translate(symbolTable);
 			ret.appendCode(eag.getCode());
-			ret.appendCode(HIRHelper.returnFn(fn.getId().getName(), eag.getAddress()));
+			ret.appendCode(HIRHelper.returnFn(fn.getLabel(), eag.getAddress()));
 		}
 		return ret;
 	}
@@ -902,12 +906,18 @@ class Id extends BasicExp {
     }
 
     public Type getType(SymbolTable symbolTable) {
-        try {
-            return symbolTable.getVariableType(strVal).getType();
-        } catch (CompilingException exception) {
-            Errors.prompt(getLine(), getChar(), exception);
-            return Type.CreateSimpleType(Type.errorTypeName);
-        }
+		while (symbolTable != null) {
+	        try {
+		        return symbolTable.getVariableType(strVal).getType();
+			} catch (CompilingException exception) {
+		    }
+			symbolTable = symbolTable.getParent();
+		}
+		Errors.prompt(getLine(), getChar(), 
+				new CompilingException(
+				    ExceptionType.SEMANTIC_ERROR,
+					"Variable " + strVal + " has not been declared"));
+	    return Type.CreateSimpleType(Type.errorTypeName);
     }
 
 	public TranslationAG translate(SymbolTable symbolTable) {
@@ -1008,7 +1018,7 @@ class CallExp extends Exp {
 
 	private TranslationAG translateSystemCall(SymbolTable symbolTable) {
 		TranslationAG ret = new TranslationAG();
-		TranslationAG aag = actualList.translate(symbolTable);
+		TranslationAG aag = actualList.translateSystemCall(symbolTable);
 		ret.appendCode(aag.getCode());
 		if (name.getName().equals("scanf"))
 			ret.appendCode(HIRHelper.readValue(aag.getAddress()));
@@ -1046,16 +1056,20 @@ class CallExp extends Exp {
 			return translateSystemCall(symbolTable);
 
 		LinkedList<Type> params = actualList.getType(symbolTable);
+		String formalsLabel = "";
+		for (Type param : params)
+			formalsLabel += "_" + param.getName();
+
 		TranslationAG aag = actualList.translate(symbolTable);
 
 		TranslationAG ret = new TranslationAG();
 		ret.appendCode(aag.getCode());
 		try {
 			if (symbolTable.getGlobalScope().getFunctionType(name.getName(), params).getType().getName() == Type.voidTypeName) {
-				ret.appendCode(HIRHelper.callProc(name.getName(), actualList.size()));
+				ret.appendCode(HIRHelper.callProc(name.getName() + "_" + formalsLabel, actualList.size()));
 			} else {
 				ret.setAddress(HIRHelper.getAddress(HIRHelper.newVariable(Scope.TEMPORARY), Scope.TEMPORARY));
-				ret.appendCode(HIRHelper.callProc(ret.getAddress(), name.getName(), actualList.size()));
+				ret.appendCode(HIRHelper.callProc(ret.getAddress(), name.getName() + "_" + formalsLabel, actualList.size()));
 			}
 		} catch (CompilingException exception) {
 		}
@@ -1093,6 +1107,16 @@ class ActualList extends Ast {
 			TranslationAG temp = exps.get(idx).translate(symbolTable);
 			ret.appendCode(temp.getCode());
 			ret.appendCode(HIRHelper.setArgument(idx, temp.getAddress()));
+			ret.setAddress(temp.getAddress());
+		}
+		return ret;
+	}
+	
+	public TranslationAG translateSystemCall(SymbolTable symbolTable) {
+		TranslationAG ret = new TranslationAG();
+		for (int idx = 0; idx < exps.size(); ++idx) {
+			TranslationAG temp = exps.get(idx).translate(symbolTable);
+			ret.appendCode(temp.getCode());
 			ret.setAddress(temp.getAddress());
 		}
 		return ret;
@@ -1484,7 +1508,7 @@ class EqualsExp extends BinaryExp {
     public Type getType(SymbolTable symbolTable) {
         Type t1 = exp1.getType(symbolTable);
         Type t2 = exp2.getType(symbolTable);
-        if (t1 != null && t2 != null && t1.getName() == Type.intTypeName && t2.getName() != Type.intTypeName) 
+        if (t1 != null && t2 != null && t1.getName() == Type.intTypeName && t2.getName() == Type.intTypeName) 
                 return Type.CreateSimpleType(Type.boolTypeName);
         Errors.prompt(getLine(), getChar(),
                 new CompilingException(ExceptionType.SEMANTIC_ERROR,
@@ -1499,8 +1523,8 @@ class EqualsExp extends BinaryExp {
 		TranslationAG ret = new TranslationAG();
 		ret.appendCode(eag1.getCode());
 		ret.appendCode(eag2.getCode());
-		ret.setAddress(HIRHelper.getAddress(HIRHelper.newVariable(Scope.TEMPORARY), Scope.TEMPORARY));
-		ret.appendCode(HIRHelper.equal(ret.getAddress(), eag1.getAddress(), eag2.getAddress()));
+		ret.appendCode(HIRHelper.jumpEqual(eag1.getAddress(), eag2.getAddress(), getTrue()));
+		ret.appendCode(HIRHelper.jump(getFalse()));
 		return ret;
 	}
 
@@ -1530,8 +1554,8 @@ class NotEqualsExp extends BinaryExp {
 		TranslationAG ret = new TranslationAG();
 		ret.appendCode(eag1.getCode());
 		ret.appendCode(eag2.getCode());
-		ret.setAddress(HIRHelper.getAddress(HIRHelper.newVariable(Scope.TEMPORARY), Scope.TEMPORARY));
-		ret.appendCode(HIRHelper.notEqual(ret.getAddress(), eag1.getAddress(), eag2.getAddress()));
+		ret.appendCode(HIRHelper.jumpNotEqual(eag1.getAddress(), eag2.getAddress(), getTrue()));
+		ret.appendCode(HIRHelper.jump(getFalse()));
 		return ret;
 	}
 
