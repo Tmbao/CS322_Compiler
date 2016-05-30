@@ -1,18 +1,19 @@
 int fact(int n) {
-	if (n < 1) {
-		return 1;
+	int f;
+	if (f > 1) {
+		f = 10;
+	} else {
+		if (f < 10) {
+			f = 20;
+		}
 	}
-	return n * fact(n - 1);
+	return f;
 }
+
+
 void main()
 {
-	int n;
-	int m;
-	scanf(n);
-	m = 1;
-	while (n > 0) {
-		m = m * n;
-		n = n - 1;
+	if (fact(10) > 2) {
+		printf(1);
 	}
-	printf(m);
 }

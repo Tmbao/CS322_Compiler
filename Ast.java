@@ -1039,7 +1039,7 @@ class CallExp extends Exp {
 		if (isSystemCall()) 
 			return getTypeSystemCall(symbolTable);
 
-        Type ret = null;
+        Type ret = Type.CreateSimpleType(Type.errorTypeName);
         LinkedList<Type> params = actualList.getType(symbolTable);
         try {
             ret = symbolTable.getGlobalScope().getFunctionType(name.getName(), params).getType();
@@ -1204,11 +1204,11 @@ class NotExp extends UnaryExp {
 
     public Type getType(SymbolTable symbolTable) {
         Type type = exp.getType(symbolTable);
-        if (type.getName() != Type.intTypeName) 
+        if (type.getName() != Type.boolTypeName) 
             Errors.prompt(getLine(), getChar(),
                     new CompilingException(ExceptionType.SEMANTIC_ERROR,
-                        "Expression must be of int type"));
-        return Type.CreateSimpleType(Type.intTypeName);
+                        "Expression must be of bool type"));
+        return Type.CreateSimpleType(Type.boolTypeName);
     }
 
 	public TranslationAG translate(SymbolTable symbolTable) {
@@ -1241,7 +1241,7 @@ class AddrOfExp extends UnaryExp {
 		TranslationAG eag = exp.translate(symbolTable);
 		ret.appendCode(eag.getCode());
 
-		// AddrOf have not been supported yet
+		// AddrOf has not been supported yet
 		return ret;
 	}
 }
@@ -1266,7 +1266,7 @@ class DeRefExp extends UnaryExp {
 		TranslationAG eag = exp.translate(symbolTable);
 		ret.appendCode(eag.getCode());
 
-		// AddrOf have not been supported yet
+		// DeRefExp has not been supported yet
 		return ret;
 	}
 }
@@ -1720,8 +1720,8 @@ class SymbolTable {
                 list = table.get(name);
                 for (ObjectType item : list) 
                     if (item instanceof VariableType || // This entry is variable 
-                        !(!((FunctionType)type).equals((FunctionType)item) || // This entry is different from the existing entries
-                          (!((FunctionType)type).isPreDecl() && ((FunctionType)item).isPreDecl()))) // This entry is not pre-decl function but the existing one is
+                        !(!((FunctionType)type).getParams().equals(((FunctionType)item).getParams()) || // This entry is different from the existing entries
+                          (!((FunctionType)type).isPreDecl() && ((FunctionType)item).isPreDecl()))) // This entry is not a pre-decl function but the existing one is
                         throw new CompilingException(
                                 ExceptionType.SEMANTIC_ERROR,
                                 "Function " + name + " has already been declared");    
